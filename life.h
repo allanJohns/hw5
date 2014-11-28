@@ -26,5 +26,14 @@ sequential_game_of_life (char* outboard,
 			 const int ncols,
 			 const int gens_max);
 
+typedef struct Thread_Structure {
+	int thread_num;
+	char* outboard;
+	char* inboard;
+	const int nrows;
+	const int ncols;
+	const int gens_max;
+}thread_struct;
+
 
 #endif /* _life_h */
