@@ -30,9 +30,9 @@ typedef struct Thread_Structure {
 	int thread_num;
 	char* outboard;
 	char* inboard;
-	const int nrows;
-	const int ncols;
-	const int gens_max;
+	int nrows;
+	int ncols;
+	int gens_max;
 }thread_struct;
 
 

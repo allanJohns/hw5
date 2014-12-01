@@ -20,8 +20,29 @@
 
 #define BOARD( __board, __i, __j )  (__board[(__i) + LDA*(__j)])
 
+#define NUMBER_OF_THREADS 4
 
-char*
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+pthread_barrier_t barrier;
+//pthread_barrierattr_t attr;
+
+
+//static inline void barrier() {
+//	static int arrived = 0;
+//	pthread_mutex_lock(&lock);
+//	arrived++;
+//	if (arrived<NUMBER_OF_THREADS) {
+//		pthread_cond_wait(&cond, &lock);
+//	}
+//	else {
+//		pthread_cond_broadcast(&cond);
+//		arrived=0; /* be prepared for next barrier */
+//	}
+//	pthread_mutex_unlock(&lock);
+//}
+
+void*
 parallel_game_of_life (void* arg)
 {
     /* HINT: in the parallel decomposition, LDA may not be equal to
@@ -34,40 +55,43 @@ parallel_game_of_life (void* arg)
 	const int ncols = thread->ncols;
 	const int gens_max = thread->gens_max;
 
-	const int nrows_thread = nrows/4;
+	const int LDA = nrows;
 
-	const int LDA = nrows_thread;
+	int from = (thread->thread_num * nrows) / NUMBER_OF_THREADS;
+	int to_row = ((thread->thread_num + 1) * nrows) / NUMBER_OF_THREADS;
 
-	int from = nrows_thread * thread->thread_num;
-
-	int i, j;
+	int curgen, i, j;
 
 	/* HINT: you'll be parallelizing these loop(s) by doing a
 	   geometric decomposition of the output */
-	for (i = from; i < nrows_thread; i++)
+	for (curgen = 0; curgen < gens_max; curgen++)
 	{
-		for (j = 0; j < ncols; j++)
+		for (i = from; i < to_row; i++)
 		{
-			const int inorth = mod (i-1, nrows_thread);
-			const int isouth = mod (i+1, nrows_thread);
-			const int jwest = mod (j-1, ncols);
-			const int jeast = mod (j+1, ncols);
+			for (j = 0; j < ncols; j++)
+			{
+				const int inorth = mod (i-1, nrows);
+				const int isouth = mod (i+1, nrows);
+				const int jwest = mod (j-1, ncols);
+				const int jeast = mod (j+1, ncols);
+				const char neighbor_count =
+					BOARD (inboard, inorth, jwest) +
+					BOARD (inboard, inorth, j) +
+					BOARD (inboard, inorth, jeast) +
+					BOARD (inboard, i, jwest) +
+					BOARD (inboard, i, jeast) +
+					BOARD (inboard, isouth, jwest) +
+					BOARD (inboard, isouth, j) +
+					BOARD (inboard, isouth, jeast);
 
-			const char neighbor_count =
-				BOARD (inboard, inorth, jwest) +
-				BOARD (inboard, inorth, j) +
-				BOARD (inboard, inorth, jeast) +
-				BOARD (inboard, i, jwest) +
-				BOARD (inboard, i, jeast) +
-				BOARD (inboard, isouth, jwest) +
-				BOARD (inboard, isouth, j) +
-				BOARD (inboard, isouth, jeast);
+				BOARD(outboard, i, j) = alivep (neighbor_count, BOARD (inboard, i, j));
 
-			BOARD(outboard, i, j) = alivep (neighbor_count, BOARD (inboard, i, j));
-
+			}
 		}
+
+		pthread_barrier_wait(&barrier);
+		SWAP_BOARDS( outboard, inboard );
 	}
-	SWAP_BOARDS( outboard, inboard );
 
     /*
      * We return the output board, so that we know which one contains
@@ -75,7 +99,7 @@ parallel_game_of_life (void* arg)
      * Just be careful when you free() the two boards, so that you don't
      * free the same one twice!!!
      */
-    return inboard;
+    return NULL;
 }
 
 /*****************************************************************************
@@ -88,32 +112,41 @@ game_of_life (char* outboard,
 	      const int ncols,
 	      const int gens_max)
 {
-	int num_threads = 4;
+	printf("got here\n\n");
+
+
+	int num_threads = NUMBER_OF_THREADS;
+	pthread_barrier_init(&barrier, NULL, num_threads);
 	pthread_t tid[num_threads];
 	thread_struct threads[num_threads];
 	int err;
 
-	int curgen, i;
-	for (curgen = 0; curgen < gens_max; curgen++)
-	{
-		for (i=0; i < num_threads; i++) {
-			threads[i].thread_num = i;
-			threads[i].outboard = outboard;
-			threads[i].inboard = inboard;
-			threads[i].nrows = nrows;
-			threads[i].ncols = ncols;
-			threads[i].gens_max = gens_max;
+	int i;
 
-			err = pthread_create(&(tid[i]), NULL, parallel_game_of_life, (void*)&threads[i]);
-			if (err) {
-				printf("\ncan't create thread :[%d]\n", err);
-				exit(EXIT_FAILURE);
-			}
-		}
-		for (i=0; i < num_threads; i++) {
-			pthread_join(tid[i], NULL);
+	printf("before the thread for loop\n\n");
+
+	for (i=0; i < num_threads; i++) {
+		threads[i].thread_num = i;
+		threads[i].outboard = outboard;
+		threads[i].inboard = inboard;
+		threads[i].nrows = nrows;
+		threads[i].ncols = ncols;
+		threads[i].gens_max = gens_max;
+
+		err = pthread_create(&(tid[i]), NULL, parallel_game_of_life, (void*)&threads[i]);
+		if (err) {
+			printf("\ncan't create thread :[%d]\n", err);
+			exit(EXIT_FAILURE);
 		}
 	}
-	return
+	for (i=0; i < num_threads; i++) {
+		pthread_join(tid[i], NULL);
+	}
+
+	if (gens_max % 2 == 0) {
+		return inboard;
+	} else {
+		return outboard;
+	}
   //return sequential_game_of_life (outboard, inboard, nrows, ncols, gens_max);
 }
