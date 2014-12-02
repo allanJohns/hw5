@@ -68,10 +68,10 @@ parallel_game_of_life (void* arg)
 	{
 		for (i = from; i < to_row; i++)
 		{
+			const int inorth = mod (i-1, nrows);
+			const int isouth = mod (i+1, nrows);
 			for (j = 0; j < ncols; j++)
 			{
-				const int inorth = mod (i-1, nrows);
-				const int isouth = mod (i+1, nrows);
 				const int jwest = mod (j-1, ncols);
 				const int jeast = mod (j+1, ncols);
 				const char neighbor_count =
