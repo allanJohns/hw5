@@ -45,6 +45,9 @@ parallel_game_of_life (void* arg)
 
 	const int LDA = nrows;
 
+	/**
+	 * dividing up the number of rows between the 4 threads
+	 */
 	int from = (thread->thread_num * nrows) / NUMBER_OF_THREADS;
 	int to_row = ((thread->thread_num + 1) * nrows) / NUMBER_OF_THREADS;
 
@@ -56,6 +59,7 @@ parallel_game_of_life (void* arg)
 	{
 		for (i = from; i < to_row; i++)
 		{
+			//Only use mod to calculate inorth and isouth if we're at the boundary
 			if (i == 0 || i == nrows - 1) {
 				inorth = mod (i-1, nrows);
 				isouth = mod (i+1, nrows);
@@ -65,6 +69,7 @@ parallel_game_of_life (void* arg)
 			}
 			for (j = 0; j < ncols; j++)
 			{
+				//Only use mod to calculate jwest and jeast if we're at the boundary
 				if (j == 0 || j == ncols - 1) {
 					jwest = mod (j-1, ncols);
 					jeast = mod (j+1, ncols);
