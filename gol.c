@@ -126,6 +126,12 @@ main (int argc, char* argv[])
   /* Load the initial board state from the input file */
   inboard = load_board (input, &nrows, &ncols);
   fclose (input);
+  //Exit gracefully if board is too big
+  if (nrows > 10000 || ncols > 10000) {
+	  fprintf (stderr, "Board must be smaller than 10000 x 10000.  File supplied is of size %d x %d\n",
+			  nrows, ncols);
+	  exit (EXIT_FAILURE);
+  }
 
   /* Create a second board for ping-ponging */
   outboard = make_board (nrows, ncols);
