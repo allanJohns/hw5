@@ -1,5 +1,6 @@
 #ifndef _life_h
 #define _life_h
+#include <pthread.h>
 
 /**
  * Given the initial board state in inboard and the board dimensions
@@ -33,6 +34,7 @@ typedef struct Thread_Structure {
 	int nrows;
 	int ncols;
 	int gens_max;
+	pthread_barrier_t *bar;
 }thread_struct;
 
 

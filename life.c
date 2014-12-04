@@ -22,8 +22,6 @@
 
 #define NUMBER_OF_THREADS 4
 
-pthread_barrier_t barrier;
-
 void*
 parallel_game_of_life (void* arg)
 {
@@ -42,6 +40,7 @@ parallel_game_of_life (void* arg)
 	const int nrows = thread->nrows;
 	const int ncols = thread->ncols;
 	const int gens_max = thread->gens_max;
+	pthread_barrier_t *bar = thread->bar;
 
 	const int LDA = nrows;
 
@@ -93,7 +92,7 @@ parallel_game_of_life (void* arg)
 			}
 		}
 
-		pthread_barrier_wait(&barrier);
+		pthread_barrier_wait(bar);
 		SWAP_BOARDS( outboard, inboard );
 	}
 
@@ -116,17 +115,11 @@ game_of_life (char* outboard,
 	      const int ncols,
 	      const int gens_max)
 {
-	//printf("got here\n\n");
-
-
+	pthread_barrier_t barrier;
 	pthread_barrier_init(&barrier, NULL, NUMBER_OF_THREADS);
 	pthread_t tid[NUMBER_OF_THREADS];
 	thread_struct threads[NUMBER_OF_THREADS];
-	int err;
-
-	int i;
-
-	//printf("before the thread for loop\n\n");
+	int err, i;
 
 	for (i=0; i < NUMBER_OF_THREADS; i++) {
 		threads[i].thread_num = i;
@@ -135,6 +128,7 @@ game_of_life (char* outboard,
 		threads[i].nrows = nrows;
 		threads[i].ncols = ncols;
 		threads[i].gens_max = gens_max;
+		threads[i].bar = &barrier;
 
 		err = pthread_create(&(tid[i]), NULL, parallel_game_of_life, (void*)&threads[i]);
 		if (err) {
@@ -147,11 +141,4 @@ game_of_life (char* outboard,
 	}
 	
 	return inboard;
-
-	/*if (gens_max % 2 == 0) {
-		return inboard;
-	} else {
-		return outboard;
-	}*/
-  //return sequential_game_of_life (outboard, inboard, nrows, ncols, gens_max);
 }
